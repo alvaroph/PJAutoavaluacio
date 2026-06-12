@@ -16,6 +16,36 @@ function signAppToken(user) {
   );
 }
 
+// GET /api/auth/config — el frontend l'usa per decidir quins mètodes de login mostrar
+router.get('/config', (_req, res) => {
+  res.json({ googleEnabled: !!config.googleClientId, devLogin: config.devMode });
+});
+
+// POST /api/auth/dev-login { email, name?, role? }
+// Drecera per entrar sense Google mentre no hi ha credencials OAuth configurades.
+// Només existeix amb AUTH_DEV_MODE=true; si l'usuari no existeix, es crea amb el rol indicat.
+router.post('/dev-login', async (req, res) => {
+  if (!config.devMode) {
+    return res.status(404).json({ error: 'Ruta no trobada' });
+  }
+  const email = (req.body?.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Cal un correu vàlid' });
+  }
+
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const role = ['admin', 'teacher', 'student'].includes(req.body?.role) ? req.body.role : 'student';
+    const name = req.body?.name?.trim() || email.split('@')[0];
+    user = await prisma.user.create({ data: { email, name, role } });
+  }
+
+  res.json({
+    token: signAppToken(user),
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  });
+});
+
 // POST /api/auth/google { credential }
 // Valida l'ID token de Google al backend: signatura, audiència, correu verificat
 // i domini corporatiu (claim `hd` + sufix del correu). No es confia mai en el frontend.

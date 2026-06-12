@@ -7,7 +7,13 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
   appUrl: process.env.APP_URL || 'http://localhost:5173',
+  // Login sense Google per a desenvolupament local. MAI a producció.
+  devMode: process.env.AUTH_DEV_MODE === 'true',
 };
+
+if (config.devMode) {
+  console.warn('[config] AUTH_DEV_MODE actiu: login sense Google habilitat. NO usar a producció.');
+}
 
 if (!config.jwtSecret) {
   console.warn('[config] JWT_SECRET no està definit. Defineix-lo abans de desplegar.');

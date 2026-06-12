@@ -34,6 +34,12 @@ cp .env.example .env
 
 Els correus d'`ADMIN_EMAILS` i `TEACHER_EMAILS` es donen d'alta automàticament com a professorat en arrencar el backend. Els alumnes es creen mitjançant la importació de llistats des del panell del professor.
 
+### Sense credencials de Google (mode desenvolupament)
+
+Si encara no tens el `GOOGLE_CLIENT_ID`, posa `AUTH_DEV_MODE=true` al `.env` (és el valor per defecte de `.env.example`). La pantalla de login mostrarà un formulari per entrar directament amb qualsevol correu com a **professor** o **alumne**, sense OAuth. Si l'usuari no existeix, es crea amb el rol triat.
+
+> ⚠️ Desactiva `AUTH_DEV_MODE` abans de posar l'aplicació en producció: permet entrar sense cap autenticació real.
+
 ### 3. Aixecar l'aplicació
 
 ```bash
