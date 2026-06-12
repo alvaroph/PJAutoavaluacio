@@ -1,4 +1,9 @@
-FROM node:20-alpine
+FROM node:20-slim
+
+# Prisma necessita OpenSSL al sistema; amb Alpine/musl la detecció falla
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
