@@ -7,10 +7,11 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-supersecret}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--port=3306", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-supersecret}"]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 30s
 
   backend:
     build: ./backend
@@ -45,7 +46,7 @@ services:
     depends_on:
       - database
     ports:
-      - "8080:8080"
+      - "8086:8080"
 
 volumes:
   db_data:
