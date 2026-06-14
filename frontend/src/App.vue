@@ -14,7 +14,15 @@ function logout() {
 <template>
   <header v-if="auth.isAuthenticated" class="topbar">
     <div class="flex">
-      <span class="brand">Autoavaluació de projectes</span>
+      <div class="brand">
+        <div class="brand-logo">
+          <img src="/logo.jpg" alt="Institut Pedralbes" />
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Institut Pedralbes</span>
+          <span class="brand-app">Autoavaluació de projectes</span>
+        </div>
+      </div>
       <nav v-if="auth.isTeacher">
         <RouterLink :to="{ name: 'dashboard' }">Inici</RouterLink>
         <RouterLink :to="{ name: 'courses' }">Cursos</RouterLink>
@@ -25,8 +33,8 @@ function logout() {
       </nav>
     </div>
     <div class="flex">
-      <span class="muted">{{ auth.user.name }} ({{ auth.user.role }})</span>
-      <button class="btn btn-secondary btn-sm" @click="logout">Sortir</button>
+      <span class="user-info">{{ auth.user.name }}</span>
+      <button class="btn btn-sm" style="background:rgba(0,180,216,.15);color:var(--color-primary);border:1px solid rgba(0,180,216,.3);" @click="logout">Sortir</button>
     </div>
   </header>
   <main>

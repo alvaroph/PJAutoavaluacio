@@ -75,42 +75,44 @@ onMounted(async () => {
 
 <template>
   <div class="login-page">
-    <div class="card login-card">
-      <h1>Autoavaluació i coavaluació de projectes</h1>
-      <p class="muted">Institut Pedralbes</p>
-
-      <template v-if="authConfig.googleEnabled && clientId">
-        <div ref="googleButton" class="google-btn"></div>
-        <p class="muted small">
-          Només s'accepten comptes del domini <strong>inspedralbes.cat</strong>
-        </p>
-      </template>
-      <p v-else-if="!authConfig.devLogin" class="alert alert-warning">
-        El login amb Google encara no està configurat (falta GOOGLE_CLIENT_ID).
-      </p>
-
-      <div v-if="authConfig.devLogin" class="dev-login">
-        <p class="alert alert-warning small">
-          Mode desenvolupament actiu: entra sense Google. Desactiva
-          <code>AUTH_DEV_MODE</code> abans de posar-ho en producció.
-        </p>
-        <form @submit.prevent="devLogin">
-          <div class="form-row">
-            <label>Correu</label>
-            <input v-model="devEmail" type="email" placeholder="algu@inspedralbes.cat" required />
-          </div>
-          <div class="form-row">
-            <label>Rol (si l'usuari encara no existeix)</label>
-            <select v-model="devRole">
-              <option value="teacher">Professor</option>
-              <option value="student">Alumne</option>
-            </select>
-          </div>
-          <button class="btn" type="submit" :disabled="busy">Entrar (mode desenvolupament)</button>
-        </form>
+    <div class="login-card">
+      <div class="login-logo-wrap">
+        <img src="/logo.jpg" alt="Institut Pedralbes" class="login-logo" />
       </div>
+      <h1 class="login-title">Autoavaluació de projectes</h1>
+      <p class="login-subtitle">Eina d'autoavaluació i coavaluació de projectes de l'Institut Pedralbes</p>
 
-      <p v-if="error" class="alert alert-error">{{ error }}</p>
+      <div class="login-body">
+        <template v-if="authConfig.googleEnabled && clientId">
+          <div ref="googleButton" class="google-btn"></div>
+          <p class="hint">Només s'accepten comptes del domini <strong>inspedralbes.cat</strong></p>
+        </template>
+        <p v-else-if="!authConfig.devLogin" class="alert alert-warning">
+          El login amb Google encara no està configurat (falta GOOGLE_CLIENT_ID).
+        </p>
+
+        <div v-if="authConfig.devLogin" class="dev-login">
+          <div class="dev-badge">Mode desenvolupament</div>
+          <form @submit.prevent="devLogin">
+            <div class="form-row">
+              <label>Correu electrònic</label>
+              <input v-model="devEmail" type="email" placeholder="algu@inspedralbes.cat" required />
+            </div>
+            <div class="form-row">
+              <label>Rol (si l'usuari és nou)</label>
+              <select v-model="devRole">
+                <option value="teacher">Professor/a</option>
+                <option value="student">Alumne/a</option>
+              </select>
+            </div>
+            <button class="btn login-btn" type="submit" :disabled="busy">
+              {{ busy ? 'Entrant…' : 'Entrar' }}
+            </button>
+          </form>
+        </div>
+
+        <p v-if="error" class="alert alert-error">{{ error }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -121,23 +123,100 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(150deg, #F2F5F8 0%, #E4F6FB 100%);
+  padding: 1rem;
 }
+
 .login-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
   max-width: 420px;
   width: 100%;
-  text-align: center;
-  padding: 2.5rem 2rem;
+  overflow: hidden;
 }
+
+.login-logo-wrap {
+  background: var(--color-dark);
+  border-bottom: 4px solid var(--color-primary);
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-logo {
+  height: 56px;
+  display: block;
+  background: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+
+.login-title {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  text-align: center;
+  padding: 1.5rem 2rem 0.25rem;
+}
+
+.login-subtitle {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  text-align: center;
+  margin: 0 0 0;
+  padding: 0 2rem 1.25rem;
+  line-height: 1.5;
+}
+
+.login-body {
+  padding: 0 2rem 2rem;
+}
+
 .google-btn {
   display: flex;
   justify-content: center;
-  margin: 1.5rem 0;
+  margin: 1.25rem 0 0.75rem;
 }
-.small { font-size: 0.85rem; }
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  text-align: center;
+  margin: 0;
+}
+
 .dev-login {
-  margin-top: 1.5rem;
   border-top: 1px solid var(--color-border);
   padding-top: 1.25rem;
-  text-align: left;
+  margin-top: 1.25rem;
+}
+
+.dev-badge {
+  display: inline-block;
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: var(--font-heading);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+}
+
+.login-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  margin-top: 0.25rem;
 }
 </style>
