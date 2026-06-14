@@ -8,6 +8,7 @@ import projectsRoutes from './routes/projects.js';
 import groupsRoutes from './routes/groups.js';
 import evaluationsRoutes from './routes/evaluations.js';
 import resultsRoutes from './routes/results.js';
+import questionnairesRoutes from './routes/questionnaires.js';
 
 const app = express();
 
@@ -17,9 +18,11 @@ app.use(express.json({ limit: '1mb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);
-// Les rutes d'alumne van primer: el router de projectes aplica requireTeacher
-// a tot /api/projects/* i interceptaria /api/projects/:id/my-group.
+// Les rutes d'alumne van primer per evitar que middlewares de professor les interceptin.
 app.use('/api', evaluationsRoutes);
+// Les rutes d'alumne de qüestionaris estan sota /api/questionnaires/student/...
+// per poder conviure amb el prefix general de professor.
+app.use('/api/questionnaires', questionnairesRoutes);
 app.use('/api/courses', coursesRoutes);
 app.use('/api/courses', studentsRoutes);
 app.use('/api/projects', projectsRoutes);

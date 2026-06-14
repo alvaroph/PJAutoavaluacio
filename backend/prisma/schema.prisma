@@ -30,6 +30,12 @@ enum EvaluationType {
   peer
 }
 
+enum QuestionnaireStatus {
+  draft
+  open
+  closed
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -38,11 +44,13 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  courseStudents   CourseStudent[]
-  groupMemberships GroupMember[]
-  projectsCreated  Project[]       @relation("ProjectCreator")
-  evaluationsGiven Evaluation[]    @relation("Evaluator")
-  evaluationsReceived Evaluation[] @relation("Evaluated")
+  courseStudents          CourseStudent[]
+  groupMemberships        GroupMember[]
+  projectsCreated         Project[]               @relation("ProjectCreator")
+  evaluationsGiven        Evaluation[]            @relation("Evaluator")
+  evaluationsReceived     Evaluation[]            @relation("Evaluated")
+  questionnairesCreated   Questionnaire[]         @relation("QuestionnaireCreator")
+  questionnaireResponses  QuestionnaireResponse[]
 
   @@map("users")
 }
@@ -56,11 +64,157 @@ model Course {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  students CourseStudent[]
-  projects Project[]
+  students       CourseStudent[]
+  projects       Project[]
+  questionnaires Questionnaire[]
 
   @@map("courses")
 }
+
+model CourseStudent {
+  id        Int      @id @default(autoincrement())
+  courseId  Int      @map("course_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@map("course_students")
+}
+
+model Project {
+  id            Int           @id @default(autoincrement())
+  courseId      Int           @map("course_id")
+  name          String
+  description   String?
+  status        ProjectStatus @default(draft)
+  scoreDecimals Int           @default(1) @map("score_decimals")
+  createdBy     Int?          @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator     User?        @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  groups      Group[]
+  evaluations Evaluation[]
+
+  @@map("projects")
+}
+
+model Group {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  evaluations Evaluation[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id        Int      @id @default(autoincrement())
+  groupId   Int      @map("group_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model Evaluation {
+  id              Int            @id @default(autoincrement())
+  projectId       Int            @map("project_id")
+  groupId         Int            @map("group_id")
+  evaluatorUserId Int            @map("evaluator_user_id")
+  evaluatedUserId Int            @map("evaluated_user_id")
+  score           Decimal        @db.Decimal(4, 2)
+  type            EvaluationType
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  evaluator User    @relation("Evaluator", fields: [evaluatorUserId], references: [id], onDelete: Cascade)
+  evaluated User    @relation("Evaluated", fields: [evaluatedUserId], references: [id], onDelete: Cascade)
+
+  // Un alumne només pot tenir una valoració activa per alumne valorat i projecte
+  @@unique([projectId, evaluatorUserId, evaluatedUserId])
+  @@map("evaluations")
+}
+
+// Qüestionari d'autoavaluació de pràctiques
+model Questionnaire {
+  id          Int                 @id @default(autoincrement())
+  courseId    Int                 @map("course_id")
+  name        String
+  description String?
+  status      QuestionnaireStatus @default(draft)
+  createdBy   Int?                @map("created_by")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  course    Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator   User?                   @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  items     QuestionnaireItem[]
+  responses QuestionnaireResponse[]
+
+  @@map("questionnaires")
+}
+
+// Cada ítem és una funcionalitat/criteri amb un % de la nota total (invisible per a l'alumne)
+model QuestionnaireItem {
+  id              Int      @id @default(autoincrement())
+  questionnaireId Int      @map("questionnaire_id")
+  label           String
+  weight          Decimal  @db.Decimal(5, 2)
+  order           Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  questionnaire Questionnaire              @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  itemResponses QuestionnaireItemResponse[]
+
+  @@map("questionnaire_items")
+}
+
+// Resposta d'un alumne: nota d'autoavaluació + quins ítems ha marcat com a fets
+model QuestionnaireResponse {
+  id              Int      @id @default(autoincrement())
+  questionnaireId Int      @map("questionnaire_id")
+  userId          Int      @map("user_id")
+  selfScore       Decimal  @db.Decimal(4, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  questionnaire Questionnaire              @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  user          User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemResponses QuestionnaireItemResponse[]
+
+  @@unique([questionnaireId, userId])
+  @@map("questionnaire_responses")
+}
+
+model QuestionnaireItemResponse {
+  id         Int     @id @default(autoincrement())
+  responseId Int     @map("response_id")
+  itemId     Int     @map("item_id")
+  done       Boolean @default(false)
+
+  response QuestionnaireResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  item     QuestionnaireItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([responseId, itemId])
+  @@map("questionnaire_item_responses")
+}
+
 
 model CourseStudent {
   id        Int      @id @default(autoincrement())

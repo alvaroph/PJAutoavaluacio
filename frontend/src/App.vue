@@ -19,9 +19,11 @@ function logout() {
         <RouterLink :to="{ name: 'dashboard' }">Inici</RouterLink>
         <RouterLink :to="{ name: 'courses' }">Cursos</RouterLink>
         <RouterLink :to="{ name: 'projects' }">Projectes</RouterLink>
+        <RouterLink :to="{ name: 'questionnaires' }">Pràctiques</RouterLink>
       </nav>
       <nav v-else>
         <RouterLink :to="{ name: 'my-projects' }">Els meus projectes</RouterLink>
+        <RouterLink :to="{ name: 'my-questionnaires' }">Les meves pràctiques</RouterLink>
       </nav>
     </div>
     <div class="flex">
