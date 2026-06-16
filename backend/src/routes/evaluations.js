@@ -34,6 +34,47 @@ function validateScore(score, decimals) {
   return { value };
 }
 
+// GET /api/my-enrollment-projects — projectes amb inscripció oberta dels cursos de l'alumne
+router.get('/my-enrollment-projects', async (req, res) => {
+  const enrollments = await prisma.courseStudent.findMany({
+    where: { userId: req.user.id },
+    select: { courseId: true },
+  });
+  const courseIds = enrollments.map((e) => e.courseId);
+
+  const projects = await prisma.project.findMany({
+    where: { courseId: { in: courseIds }, enrollmentOpen: true },
+    include: {
+      course: { select: { id: true, name: true } },
+      groups: {
+        include: {
+          members: { select: { userId: true, user: { select: { id: true, name: true, email: true } } } },
+        },
+        orderBy: { name: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const userId = req.user.id;
+  res.json({
+    projects: projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      status: p.status,
+      enrollmentOpen: p.enrollmentOpen,
+      course: p.course,
+      myGroupId: p.groups.find((g) => g.members.some((m) => m.userId === userId))?.id ?? null,
+      groups: p.groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        members: g.members.map((m) => m.user),
+      })),
+    })),
+  });
+});
+
 // GET /api/my-projects — projectes amb votació oberta o tancada on l'alumne té grup
 router.get('/my-projects', async (req, res) => {
   const memberships = await prisma.groupMember.findMany({

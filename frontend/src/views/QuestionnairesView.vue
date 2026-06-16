@@ -1,25 +1,47 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { api } from '../api.js';
+import FilterBar from '../components/FilterBar.vue';
 
+const allQuestionnaires = ref([]);
 const questionnaires = ref([]);
 const courses = ref([]);
 const error = ref('');
 const showForm = ref(false);
 const saving = ref(false);
 
+const filters = ref({ courseId: '', status: '', search: '' });
+
 const form = ref({ courseId: '', name: '', description: '' });
 const statusLabels = { draft: 'Esborrany', open: 'Obert', closed: 'Tancat' };
+const statusOptions = Object.entries(statusLabels).map(([value, label]) => ({ value, label }));
 
 async function load() {
   try {
     const [q, c] = await Promise.all([api.get('/questionnaires'), api.get('/courses')]);
-    questionnaires.value = q.questionnaires;
+    allQuestionnaires.value = q.questionnaires;
     courses.value = c.courses.filter((c) => c.status === 'active');
+    applyFilters();
   } catch (e) {
     error.value = e.message;
   }
 }
+
+function applyFilters() {
+  let result = allQuestionnaires.value;
+  const { courseId, status, search } = filters.value;
+  if (courseId) result = result.filter((q) => q.courseId === Number(courseId));
+  if (status) result = result.filter((q) => q.status === status);
+  if (search) {
+    const s = search.toLowerCase();
+    result = result.filter(
+      (q) => q.name.toLowerCase().includes(s) || (q.description || '').toLowerCase().includes(s),
+    );
+  }
+  questionnaires.value = result;
+}
+
+watch(filters, applyFilters, { deep: true });
 
 async function create() {
   saving.value = true;
@@ -83,7 +105,16 @@ onMounted(load);
     </div>
 
     <div class="card">
-      <p v-if="questionnaires.length === 0" class="muted">Encara no hi ha cap qüestionari.</p>
+      <FilterBar
+        v-model="filters"
+        :courses="courses"
+        :statuses="statusOptions"
+      />
+
+      <p v-if="allQuestionnaires.length > 0 && questionnaires.length === 0" class="muted">
+        No s'han trobat pràctiques amb aquests filtres.
+      </p>
+      <p v-else-if="allQuestionnaires.length === 0" class="muted">Encara no hi ha cap qüestionari.</p>
       <table v-else>
         <thead>
           <tr>

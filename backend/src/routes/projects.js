@@ -10,11 +10,22 @@ const projectInclude = {
   _count: { select: { groups: true } },
 };
 
-// GET /api/projects?courseId=
+// GET /api/projects?courseId=&status=&search=
 router.get('/', async (req, res) => {
   const courseId = req.query.courseId ? Number(req.query.courseId) : undefined;
+  const status = req.query.status || undefined;
+  const search = req.query.search?.trim() || undefined;
+
+  const where = {};
+  if (courseId) where.courseId = courseId;
+  if (status) where.status = status;
+  if (search) where.OR = [
+    { name: { contains: search } },
+    { description: { contains: search } },
+  ];
+
   const projects = await prisma.project.findMany({
-    where: courseId ? { courseId } : undefined,
+    where: Object.keys(where).length ? where : undefined,
     include: projectInclude,
     orderBy: { createdAt: 'desc' },
   });
@@ -135,6 +146,25 @@ router.post('/:id/close', async (req, res) => {
     include: projectInclude,
   });
   res.json({ project: updated });
+});
+
+// PATCH /api/projects/:id/enrollment { enrollmentOpen: boolean } — només professors
+router.patch('/:id/enrollment', async (req, res) => {
+  const id = Number(req.params.id);
+  const { enrollmentOpen } = req.body || {};
+  if (typeof enrollmentOpen !== 'boolean') {
+    return res.status(400).json({ error: 'Cal indicar enrollmentOpen (true/false)' });
+  }
+  try {
+    const updated = await prisma.project.update({
+      where: { id },
+      data: { enrollmentOpen },
+      include: projectInclude,
+    });
+    res.json({ project: updated });
+  } catch {
+    res.status(404).json({ error: 'Projecte no trobat' });
+  }
 });
 
 export default router;

@@ -11,6 +11,7 @@ const project = ref(null);
 const groups = ref([]);
 const unassigned = ref([]);
 const error = ref('');
+const message = ref('');
 const newGroupName = ref('');
 
 async function load() {
@@ -52,14 +53,46 @@ function removeGroup(group) {
   run(() => api.delete(`/groups/${group.id}`));
 }
 
+async function toggleEnrollment() {
+  const newValue = !project.value.enrollmentOpen;
+  const action = newValue ? 'obrir' : 'tancar';
+  if (!confirm(`Vols ${action} la inscripció de grups? ${newValue ? 'Els alumnes podran afegir-se als grups.' : 'Els grups quedaran congelats i cap alumne podrà modificar la seva assignació.'}`)) return;
+  error.value = '';
+  message.value = '';
+  try {
+    const res = await api.patch(`/projects/${projectId}/enrollment`, { enrollmentOpen: newValue });
+    project.value = res.project;
+    message.value = newValue
+      ? 'Inscripció oberta. Els alumnes ja es poden afegir als grups.'
+      : 'Inscripció tancada. Els grups estan congelats.';
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+
 onMounted(load);
 </script>
 
 <template>
   <div class="container">
     <p><RouterLink :to="{ name: 'projects' }">&larr; Tornar als projectes</RouterLink></p>
-    <h1 v-if="project">Grups de «{{ project.name }}»</h1>
+    <div v-if="project" class="flex flex-between" style="align-items: center;">
+      <h1>Grups de «{{ project.name }}»</h1>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span :class="`badge badge-${project.enrollmentOpen ? 'open' : 'closed'}`">
+          Inscripció {{ project.enrollmentOpen ? 'oberta' : 'tancada' }}
+        </span>
+        <button
+          :class="project.enrollmentOpen ? 'btn btn-danger btn-sm' : 'btn btn-sm'"
+          @click="toggleEnrollment"
+        >
+          {{ project.enrollmentOpen ? 'Tancar inscripció' : 'Obrir inscripció' }}
+        </button>
+      </div>
+    </div>
+
     <p v-if="error" class="alert alert-error">{{ error }}</p>
+    <p v-if="message" class="alert alert-success">{{ message }}</p>
 
     <p v-if="unassigned.length > 0" class="alert alert-warning">
       Hi ha {{ unassigned.length }} alumne(s) del curs sense grup.

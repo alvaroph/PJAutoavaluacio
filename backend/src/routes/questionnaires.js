@@ -37,11 +37,22 @@ function validateWeights(items) {
 
 // ─── RUTES DE PROFESSOR ────────────────────────────────────────────────────
 
-// GET /api/questionnaires?courseId=
+// GET /api/questionnaires?courseId=&status=&search=
 router.get('/', requireAuth, requireTeacher, async (req, res) => {
   const courseId = req.query.courseId ? Number(req.query.courseId) : undefined;
+  const status = req.query.status || undefined;
+  const search = req.query.search?.trim() || undefined;
+
+  const where = {};
+  if (courseId) where.courseId = courseId;
+  if (status) where.status = status;
+  if (search) where.OR = [
+    { name: { contains: search } },
+    { description: { contains: search } },
+  ];
+
   const qs = await prisma.questionnaire.findMany({
-    where: courseId ? { courseId } : undefined,
+    where: Object.keys(where).length ? where : undefined,
     include: {
       course: { select: { id: true, name: true, academicYear: true } },
       _count: { select: { items: true, responses: true } },

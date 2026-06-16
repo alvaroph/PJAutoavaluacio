@@ -1,8 +1,10 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { api } from '../api.js';
+import FilterBar from '../components/FilterBar.vue';
 
 const projects = ref([]);
+const allProjects = ref([]);
 const courses = ref([]);
 const error = ref('');
 const message = ref('');
@@ -10,17 +12,39 @@ const showForm = ref(false);
 const saving = ref(false);
 const form = ref({ courseId: '', name: '', description: '', scoreDecimals: 1 });
 
+const filters = ref({ courseId: '', status: '', search: '' });
+
 const statusLabels = { draft: 'Esborrany', open: 'Votació oberta', closed: 'Votació tancada', archived: 'Arxivat' };
+const statusOptions = Object.entries(statusLabels).map(([value, label]) => ({ value, label }));
+
+const enrollmentLabels = { true: 'Inscripció oberta', false: 'Inscripció tancada' };
 
 async function load() {
   try {
     const [p, c] = await Promise.all([api.get('/projects'), api.get('/courses')]);
-    projects.value = p.projects;
+    allProjects.value = p.projects;
     courses.value = c.courses.filter((course) => course.status === 'active');
+    applyFilters();
   } catch (e) {
     error.value = e.message;
   }
 }
+
+function applyFilters() {
+  let result = allProjects.value;
+  const { courseId, status, search } = filters.value;
+  if (courseId) result = result.filter((p) => p.courseId === Number(courseId));
+  if (status) result = result.filter((p) => p.status === status);
+  if (search) {
+    const q = search.toLowerCase();
+    result = result.filter(
+      (p) => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q),
+    );
+  }
+  projects.value = result;
+}
+
+watch(filters, applyFilters, { deep: true });
 
 async function createProject() {
   saving.value = true;
@@ -76,6 +100,22 @@ async function archiveProject(project) {
   }
 }
 
+async function toggleEnrollment(project) {
+  const newValue = !project.enrollmentOpen;
+  const action = newValue ? 'obrir' : 'tancar';
+  if (!confirm(`Vols ${action} la inscripció de grups per a «${project.name}»?`)) return;
+  error.value = '';
+  try {
+    await api.patch(`/projects/${project.id}/enrollment`, { enrollmentOpen: newValue });
+    message.value = newValue
+      ? `Inscripció de grups oberta per a «${project.name}».`
+      : `Inscripció de grups tancada per a «${project.name}». Els grups queden congelats.`;
+    await load();
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+
 onMounted(load);
 </script>
 
@@ -124,7 +164,16 @@ onMounted(load);
     </div>
 
     <div class="card">
-      <p v-if="projects.length === 0" class="muted">Encara no hi ha cap projecte.</p>
+      <FilterBar
+        v-model="filters"
+        :courses="courses"
+        :statuses="statusOptions"
+      />
+
+      <p v-if="allProjects.length > 0 && projects.length === 0" class="muted">
+        No s'han trobat projectes amb aquests filtres.
+      </p>
+      <p v-else-if="allProjects.length === 0" class="muted">Encara no hi ha cap projecte.</p>
       <table v-else>
         <thead>
           <tr>
@@ -132,6 +181,7 @@ onMounted(load);
             <th>Curs</th>
             <th>Grups</th>
             <th>Estat</th>
+            <th>Inscripció</th>
             <th></th>
           </tr>
         </thead>
@@ -144,6 +194,11 @@ onMounted(load);
             <td>{{ project.course.name }}</td>
             <td>{{ project._count.groups }}</td>
             <td><span :class="`badge badge-${project.status}`">{{ statusLabels[project.status] }}</span></td>
+            <td>
+              <span :class="`badge badge-${project.enrollmentOpen ? 'open' : 'closed'}`">
+                {{ project.enrollmentOpen ? 'Oberta' : 'Tancada' }}
+              </span>
+            </td>
             <td class="text-right">
               <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'project-groups', params: { projectId: project.id } }">
                 Grups
@@ -151,6 +206,12 @@ onMounted(load);
               <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'project-results', params: { projectId: project.id } }">
                 Resultats
               </RouterLink>
+              <button
+                :class="project.enrollmentOpen ? 'btn btn-danger btn-sm' : 'btn btn-secondary btn-sm'"
+                @click="toggleEnrollment(project)"
+              >
+                {{ project.enrollmentOpen ? 'Tancar inscripció' : 'Obrir inscripció' }}
+              </button>
               <button v-if="project.status === 'draft' || project.status === 'closed'" class="btn btn-sm" @click="openVoting(project)">
                 Obrir votació
               </button>

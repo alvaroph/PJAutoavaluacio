@@ -85,15 +85,16 @@ model CourseStudent {
 }
 
 model Project {
-  id            Int           @id @default(autoincrement())
-  courseId      Int           @map("course_id")
-  name          String
-  description   String?
-  status        ProjectStatus @default(draft)
-  scoreDecimals Int           @default(1) @map("score_decimals")
-  createdBy     Int?          @map("created_by")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id             Int           @id @default(autoincrement())
+  courseId       Int           @map("course_id")
+  name           String
+  description    String?
+  status         ProjectStatus @default(draft)
+  enrollmentOpen Boolean       @default(false) @map("enrollment_open")
+  scoreDecimals  Int           @default(1) @map("score_decimals")
+  createdBy      Int?          @map("created_by")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
   creator     User?        @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -146,7 +147,6 @@ model Evaluation {
   evaluator User    @relation("Evaluator", fields: [evaluatorUserId], references: [id], onDelete: Cascade)
   evaluated User    @relation("Evaluated", fields: [evaluatedUserId], references: [id], onDelete: Cascade)
 
-  // Un alumne només pot tenir una valoració activa per alumne valorat i projecte
   @@unique([projectId, evaluatorUserId, evaluatedUserId])
   @@map("evaluations")
 }
@@ -213,85 +213,4 @@ model QuestionnaireItemResponse {
 
   @@unique([responseId, itemId])
   @@map("questionnaire_item_responses")
-}
-
-
-model CourseStudent {
-  id        Int      @id @default(autoincrement())
-  courseId  Int      @map("course_id")
-  userId    Int      @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([courseId, userId])
-  @@map("course_students")
-}
-
-model Project {
-  id            Int           @id @default(autoincrement())
-  courseId      Int           @map("course_id")
-  name          String
-  description   String?
-  status        ProjectStatus @default(draft)
-  scoreDecimals Int           @default(1) @map("score_decimals")
-  createdBy     Int?          @map("created_by")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-
-  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  creator     User?        @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  groups      Group[]
-  evaluations Evaluation[]
-
-  @@map("projects")
-}
-
-model Group {
-  id        Int      @id @default(autoincrement())
-  projectId Int      @map("project_id")
-  name      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  members     GroupMember[]
-  evaluations Evaluation[]
-
-  @@map("groups")
-}
-
-model GroupMember {
-  id        Int      @id @default(autoincrement())
-  groupId   Int      @map("group_id")
-  userId    Int      @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, userId])
-  @@map("group_members")
-}
-
-model Evaluation {
-  id              Int            @id @default(autoincrement())
-  projectId       Int            @map("project_id")
-  groupId         Int            @map("group_id")
-  evaluatorUserId Int            @map("evaluator_user_id")
-  evaluatedUserId Int            @map("evaluated_user_id")
-  score           Decimal        @db.Decimal(4, 2)
-  type            EvaluationType
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  evaluator User    @relation("Evaluator", fields: [evaluatorUserId], references: [id], onDelete: Cascade)
-  evaluated User    @relation("Evaluated", fields: [evaluatedUserId], references: [id], onDelete: Cascade)
-
-  // Un alumne només pot tenir una valoració activa per alumne valorat i projecte
-  @@unique([projectId, evaluatorUserId, evaluatedUserId])
-  @@map("evaluations")
 }
