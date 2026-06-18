@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    allowedHosts: ['projectes.inspedralbes.cat', 'localhost'],
     proxy: {
       '/api': {
         target: process.env.API_PROXY_TARGET || 'http://localhost:3000',

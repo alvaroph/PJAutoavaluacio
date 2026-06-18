@@ -18,7 +18,12 @@ export const useAuthStore = defineStore('auth', {
       setToken(data.token);
       this.user = data.user;
     },
-    // Login de desenvolupament (només si el backend té AUTH_DEV_MODE=true)
+    async loginWithEmail(email) {
+      const data = await api.post('/auth/email-login', { email });
+      setToken(data.token);
+      this.user = data.user;
+    },
+    // Login de desenvolupament (deprecated, mantingut per compatibilitat)
     async loginDev(email, role) {
       const data = await api.post('/auth/dev-login', { email, role });
       setToken(data.token);

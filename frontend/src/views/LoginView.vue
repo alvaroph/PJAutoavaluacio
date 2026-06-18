@@ -1,16 +1,14 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { api } from '../api.js';
 import { useAuthStore } from '../stores/auth.js';
 
 const auth = useAuthStore();
 const router = useRouter();
 const error = ref('');
 const googleButton = ref(null);
-const authConfig = ref({ googleEnabled: false, devLogin: false });
-const devEmail = ref('');
-const devRole = ref('teacher');
+const authConfig = ref({ googleEnabled: false, devLogin: false, emailLogin: true });
+const emailInput = ref('');
 const busy = ref(false);
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -29,11 +27,11 @@ async function handleCredential(response) {
   }
 }
 
-async function devLogin() {
+async function emailLogin() {
   error.value = '';
   busy.value = true;
   try {
-    await auth.loginDev(devEmail.value, devRole.value);
+    await auth.loginWithEmail(emailInput.value);
     goHome();
   } catch (e) {
     error.value = e.message;
@@ -44,7 +42,6 @@ async function devLogin() {
 
 function initGoogle() {
   if (!window.google?.accounts?.id) {
-    // L'script GSI encara es carrega: reintenta fins que estigui disponible
     setTimeout(initGoogle, 200);
     return;
   }
@@ -63,7 +60,7 @@ function initGoogle() {
 
 onMounted(async () => {
   try {
-    authConfig.value = await api.get('/auth/config');
+    authConfig.value = await (await fetch('/api/auth/config')).json();
   } catch {
     // si l'API no respon, ho indiquem en intentar entrar
   }
@@ -86,30 +83,18 @@ onMounted(async () => {
         <template v-if="authConfig.googleEnabled && clientId">
           <div ref="googleButton" class="google-btn"></div>
           <p class="hint">Només s'accepten comptes del domini <strong>inspedralbes.cat</strong></p>
+          <div class="divider"><span>o</span></div>
         </template>
-        <p v-else-if="!authConfig.devLogin" class="alert alert-warning">
-          El login amb Google encara no està configurat (falta GOOGLE_CLIENT_ID).
-        </p>
 
-        <div v-if="authConfig.devLogin" class="dev-login">
-          <div class="dev-badge">Mode desenvolupament</div>
-          <form @submit.prevent="devLogin">
-            <div class="form-row">
-              <label>Correu electrònic</label>
-              <input v-model="devEmail" type="email" placeholder="algu@inspedralbes.cat" required />
-            </div>
-            <div class="form-row">
-              <label>Rol (si l'usuari és nou)</label>
-              <select v-model="devRole">
-                <option value="teacher">Professor/a</option>
-                <option value="student">Alumne/a</option>
-              </select>
-            </div>
-            <button class="btn login-btn" type="submit" :disabled="busy">
-              {{ busy ? 'Entrant…' : 'Entrar' }}
-            </button>
-          </form>
-        </div>
+        <form class="email-login" @submit.prevent="emailLogin">
+          <div class="form-row">
+            <label>Correu electrònic</label>
+            <input v-model="emailInput" type="email" placeholder="algu@inspedralbes.cat" required />
+          </div>
+          <button class="btn login-btn" type="submit" :disabled="busy">
+            {{ busy ? 'Entrant…' : 'Entrar amb correu' }}
+          </button>
+        </form>
 
         <p v-if="error" class="alert alert-error">{{ error }}</p>
       </div>
@@ -189,25 +174,27 @@ onMounted(async () => {
   margin: 0;
 }
 
-.dev-login {
-  border-top: 1px solid var(--color-border);
-  padding-top: 1.25rem;
-  margin-top: 1.25rem;
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
 }
 
-.dev-badge {
-  display: inline-block;
-  background: #FFFBEB;
-  color: #92400E;
-  border: 1px solid #FDE68A;
-  font-size: 0.72rem;
-  font-weight: 600;
-  font-family: var(--font-heading);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.2rem 0.65rem;
-  border-radius: 999px;
-  margin-bottom: 1rem;
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.email-login {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .login-btn {

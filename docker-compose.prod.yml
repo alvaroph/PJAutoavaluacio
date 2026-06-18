@@ -1,0 +1,43 @@
+services:
+  database:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-supersecret}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-autoavaluacio}
+    volumes:
+      - db_data_prod:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--port=3306", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-supersecret}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-supersecret}@database:3306/${MYSQL_DATABASE:-autoavaluacio}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_ALLOWED_DOMAIN: ${GOOGLE_ALLOWED_DOMAIN:-inspedralbes.cat}
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_DEV_MODE: "false"
+      APP_URL: ${APP_URL:-https://projectes.inspedralbes.cat}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
+      TEACHER_EMAILS: ${TEACHER_EMAILS}
+
+  frontend-nginx:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  db_data_prod:

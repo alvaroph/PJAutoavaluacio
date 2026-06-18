@@ -8,6 +8,13 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 const googleClient = new OAuth2Client(config.googleClientId);
 
+const STUDENT_EMAIL_REGEX = /^a\d{2}[a-z0-9]/i;
+
+function detectRole(email) {
+  const localPart = email.split('@')[0];
+  return STUDENT_EMAIL_REGEX.test(localPart) ? 'student' : 'teacher';
+}
+
 function signAppToken(user) {
   return jwt.sign(
     { sub: user.id, email: user.email, role: user.role, name: user.name },
@@ -18,7 +25,7 @@ function signAppToken(user) {
 
 // GET /api/auth/config — el frontend l'usa per decidir quins mètodes de login mostrar
 router.get('/config', (_req, res) => {
-  res.json({ googleEnabled: !!config.googleClientId, devLogin: config.devMode });
+  res.json({ googleEnabled: !!config.googleClientId, devLogin: config.devMode, emailLogin: true });
 });
 
 // POST /api/auth/dev-login { email, name?, role? }
@@ -37,6 +44,31 @@ router.post('/dev-login', async (req, res) => {
   if (!user) {
     const role = ['admin', 'teacher', 'student'].includes(req.body?.role) ? req.body.role : 'student';
     const name = req.body?.name?.trim() || email.split('@')[0];
+    user = await prisma.user.create({ data: { email, name, role } });
+  }
+
+  res.json({
+    token: signAppToken(user),
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  });
+});
+
+// POST /api/auth/email-login { email }
+// Login per correu del domini sense password. Crea l'usuari si no existeix,
+// detectant el rol automàticament pel patró del correu.
+router.post('/email-login', async (req, res) => {
+  const email = (req.body?.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Cal un correu vàlid' });
+  }
+  if (!email.endsWith('@' + config.allowedDomain)) {
+    return res.status(403).json({ error: `Només s'accepten comptes del domini ${config.allowedDomain}` });
+  }
+
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const role = detectRole(email);
+    const name = email.split('@')[0];
     user = await prisma.user.create({ data: { email, name, role } });
   }
 
@@ -78,17 +110,15 @@ router.post('/google', async (req, res) => {
     return res.status(403).json({ error: `Només s'accepten comptes del domini ${domain}` });
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    return res.status(403).json({
-      error: 'El teu compte no està donat d\'alta. Demana al professor que t\'importi al curs.',
-    });
-  }
-
-  // Sincronitza el nom amb el del compte Google si ha canviat
-  if (payload.name && payload.name !== user.name) {
+    const role = detectRole(email);
+    const name = payload.name || email.split('@')[0];
+    user = await prisma.user.create({ data: { email, name, role } });
+  } else if (payload.name && payload.name !== user.name) {
+    // Sincronitza el nom amb el del compte Google si ha canviat
     await prisma.user.update({ where: { id: user.id }, data: { name: payload.name } });
-    user.name = payload.name;
+    user = { ...user, name: payload.name };
   }
 
   res.json({
