@@ -34,10 +34,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "5173:80"
 
 volumes:
   db_data_prod:
